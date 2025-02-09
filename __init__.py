@@ -20,7 +20,7 @@ try:
     import cm_global
     cm_global.register_extension('Bliss Classification',
                                  {'version': "1",
-                                  'name': 'Impact Pack',
+                                  'name': 'Bliss Pack',
                                   'nodes': set(NODE_CLASS_MAPPINGS.keys()),
                                   'description': 'Bliss Comfy Nodes', })
 except:
