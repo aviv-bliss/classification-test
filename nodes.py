@@ -3,20 +3,20 @@ import sys
 import logging
 import argparse
 import torch
-
-sys.path.append(
-    os.path.dirname(os.path.abspath(__file__))
-)
+from typing import Tuple
 
 import folder_paths
-from classification.inference import main as classification
+from .modules import classification
+
+# Basic practice to get paths from ComfyUI
+custom_nodes_script_dir = os.path.dirname(os.path.abspath(__file__))
+custom_nodes_model_dir = os.path.join(folder_paths.models_dir, "classification")
+custom_nodes_output_dir = os.path.join(folder_paths.get_output_directory(), "classification")
 
 logger = logging.getLogger('comfyui_classification')
 
-classification_ckpts_dir_name = "classification"  # in /home/bliss/comfy/ComfyUI/models
-
-
-def get_local_filepath(dirname, local_file_name):
+def get_local_filepath(dirname: str, local_file_name: str) -> str:
+    """Get the full path for a model file in the models directory."""
     folder = os.path.join(folder_paths.models_dir, dirname)
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -26,38 +26,20 @@ def get_local_filepath(dirname, local_file_name):
         raise FileNotFoundError(f'{destination} not found')
     return destination
 
-
 class ClassificationNode:
     """
     A ComfyUI node for image classification using custom models.
 
     This node loads a classification model from a checkpoint and performs inference
     on input images, returning a prediction score.
-
-    Class methods
-    -------------
-    INPUT_TYPES (dict):
-        Defines the input parameters for the classification node.
-    IS_CHANGED:
-        Controls when the node should be re-executed based on checkpoint changes.
-
-    Attributes
-    ----------
-    RETURN_TYPES (`tuple`):
-        The types of the output values (NUMBER for prediction score)
-    RETURN_NAMES (`tuple`):
-        Names of the output values
-    FUNCTION (`str`):
-        The name of the entry-point method
-    CATEGORY (`str`):
-        UI category for the node
     """
     
     @classmethod
     def INPUT_TYPES(cls):
+        """Define input parameters for the classification node."""
         try:
             # Get list of available checkpoints
-            folder = os.path.join(folder_paths.models_dir, classification_ckpts_dir_name)
+            folder = os.path.join(folder_paths.models_dir, "classification")
             if not os.path.exists(folder):
                 os.makedirs(folder)
             ckpt_files = [f for f in os.listdir(folder) if f.endswith('.pth.tar')]
@@ -75,7 +57,7 @@ class ClassificationNode:
         }
 
     CATEGORY = "Classification"
-    FUNCTION = "main"
+    FUNCTION = "classify"
     RETURN_TYPES = ("NUMBER",)
     RETURN_NAMES = ("prediction_score",)
 
@@ -84,28 +66,21 @@ class ClassificationNode:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = None  # Model will be loaded on first use
 
-    def main(self, ckpt_name, input_image, output_image):
+    def classify(self, ckpt_name: str, input_image: torch.Tensor, output_image: torch.Tensor) -> Tuple[float]:
         """
         Perform classification on the input image.
 
-        Parameters
-        ----------
-        ckpt_name : str
-            Name of the model checkpoint file
-        input_image : torch.Tensor
-            Input image to classify
-        output_image : torch.Tensor
-            Output image for visualization
+        Args:
+            ckpt_name: Name of the model checkpoint file
+            input_image: Input image to classify
+            output_image: Output image for visualization
 
-        Returns
-        -------
-        tuple
-            Contains the prediction score as a float
+        Returns:
+            Tuple containing the prediction score as a float
         """
         try:
-            model_path = get_local_filepath(classification_ckpts_dir_name, ckpt_name)
+            model_path = get_local_filepath("classification", ckpt_name)
             
-            # Create args for classification
             args = argparse.Namespace(
                 model_path=model_path,
                 input_image_path=input_image,
@@ -113,34 +88,15 @@ class ClassificationNode:
                 gpu=0 if torch.cuda.is_available() else -1
             )
 
-            # Run classification
             pred_score = classification(args)
-            
-            # Ensure we return a tuple with a float
             return (float(pred_score),)
+            
         except FileNotFoundError as e:
             raise FileNotFoundError(f"Model checkpoint not found: {e}")
         except Exception as e:
             raise RuntimeError(f"Classification failed: {str(e)}")
 
     @classmethod
-    def IS_CHANGED(cls, ckpt_name, input_image, output_image):
-        """
-        Control node re-execution based on checkpoint changes.
-        
-        Returns the checkpoint name as a string to force re-execution when the
-        checkpoint file changes.
-        """
+    def IS_CHANGED(cls, ckpt_name: str, input_image: torch.Tensor, output_image: torch.Tensor) -> str:
+        """Control node re-execution based on checkpoint changes."""
         return ckpt_name
-
-
-# Set the web directory to the current directory for any frontend extensions
-WEB_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
-
-# Add custom API routes, using router
-from aiohttp import web
-from server import PromptServer
-
-@PromptServer.instance.routes.get("/hello")
-async def get_hello(request):
-    return web.json_response("hello")

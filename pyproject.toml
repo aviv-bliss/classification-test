@@ -1,0 +1,18 @@
+[project]
+name = "comfyui-classification"
+description = "Image Classification nodes for ComfyUI that enable using custom classification models."
+version = "1.0.0"
+dependencies = [
+    "torch>=2.0.0",
+    "numpy>=1.21.0",
+    "Pillow>=9.0.0",
+    "aiohttp>=3.8.0"
+]
+
+[project.urls]
+Repository = "https://github.com/avivbenyosef/comfyio_classification"
+
+[tool.comfy]
+PublisherId = "avivbenyosef"
+DisplayName = "ComfyUI Classification Nodes"
+Description = "Custom nodes for image classification tasks in ComfyUI"
