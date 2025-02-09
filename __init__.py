@@ -3,9 +3,11 @@ from .install import *
 
 
 NODE_CLASS_MAPPINGS = {
-    'ClassificationNode': Classification
+    'ClassificationNode': ClassificationNode
 }
 
-__all__ = ['NODE_CLASS_MAPPINGS']
+NODE_DISPLAY_NAME_MAPPINGS = {
+    "ClassificationNode": "Classification Node"
+}
 
-
+__all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS']

@@ -55,25 +55,34 @@ class ClassificationNode:
     
     @classmethod
     def INPUT_TYPES(cls):
+        try:
+            # Get list of available checkpoints
+            folder = os.path.join(folder_paths.models_dir, classification_ckpts_dir_name)
+            if not os.path.exists(folder):
+                os.makedirs(folder)
+            ckpt_files = [f for f in os.listdir(folder) if f.endswith('.pth.tar')]
+            if not ckpt_files:
+                ckpt_files = ["model_ckpt_10_400.pth.tar"]  # Default if no checkpoints found
+        except Exception:
+            ckpt_files = ["model_ckpt_10_400.pth.tar"]  # Fallback default
+            
         return {
             "required": {
-                "ckpt_name": ("STRING", {
-                    "default": "model_ckpt_10_400.pth.tar",
-                    "multiline": False,
-                }),
-                "input_image": ("IMAGE", {}),
-                "output_image": ("IMAGE", {}),
+                "ckpt_name": (ckpt_files,),
+                "input_image": ("IMAGE",),
+                "output_image": ("IMAGE",),
             }
         }
 
     CATEGORY = "Classification"
     FUNCTION = "main"
-    RETURN_TYPES = ["NUMBER"]
-    RETURN_NAMES = ["prediction_score"]
+    RETURN_TYPES = ("NUMBER",)
+    RETURN_NAMES = ("prediction_score",)
 
     def __init__(self):
         """Initialize the classification node with CUDA support if available."""
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model = None  # Model will be loaded on first use
 
     def main(self, ckpt_name, input_image, output_image):
         """
@@ -95,7 +104,8 @@ class ClassificationNode:
         """
         try:
             model_path = get_local_filepath(classification_ckpts_dir_name, ckpt_name)
-
+            
+            # Create args for classification
             args = argparse.Namespace(
                 model_path=model_path,
                 input_image_path=input_image,
@@ -103,8 +113,11 @@ class ClassificationNode:
                 gpu=0 if torch.cuda.is_available() else -1
             )
 
+            # Run classification
             pred_score = classification(args)
-            return (float(pred_score), )
+            
+            # Ensure we return a tuple with a float
+            return (float(pred_score),)
         except FileNotFoundError as e:
             raise FileNotFoundError(f"Model checkpoint not found: {e}")
         except Exception as e:
@@ -131,11 +144,3 @@ from server import PromptServer
 @PromptServer.instance.routes.get("/hello")
 async def get_hello(request):
     return web.json_response("hello")
-
-NODE_CLASS_MAPPINGS = {
-    'ClassificationNode': ClassificationNode
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "ClassificationNode": "Classification Node"
-}
